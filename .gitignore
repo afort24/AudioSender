@@ -1,0 +1,19 @@
+# Ignore build files and caches
+build/
+*.o
+*.so
+*.a
+*.dSYM
+.DS_Store
+xcuserdata/
+.idea/
+
+# Ignore JUCE-generated files (if needed)
+*.jucer
+*.bak
+
+# ✅ Track source and project files
+!Source/
+!*.cpp
+!*.h
+
