@@ -2,7 +2,6 @@
 #include "PluginEditor.h"
 
 //Posix Headers
-//Git Test 7
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
