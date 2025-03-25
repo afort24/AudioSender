@@ -1,9 +1,10 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include "SharedMemoryManager.h"
 
 
-class SlaveAudioSenderAudioProcessor  : public juce::AudioProcessor
+class SlaveAudioSenderAudioProcessor : public juce::AudioProcessor, public SharedMemoryManager
 {
 public:
     //==============================================================================
@@ -42,14 +43,33 @@ public:
     //==============================================================================
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
+    
+    // new:
+    bool initializeSharedMemory();
+    void cleanupSharedMemory();
+    
+
+
+    
+
 
 private:
     
     static constexpr const char* SHARED_MEMORY_NAME = "/my_shared_audio_buffer";
-    static constexpr size_t BUFFER_SIZE = 48000 * 2 * sizeof(float); // 1 second of stereo audio at 48kHz
+//    static constexpr size_t BUFFER_SIZE = 48000 * 2 * sizeof(float); // 1 second of stereo audio at 48kHz
     
-    int shm_fd;
-    float* audioBuffer;
+//    int shm_fd;
+    
+//    float* audioBuffer;
+    
+
+    
+    double currentSampleRate = 0.0;
+    int currentBlockSize = 0;
+    int currentNumChannels = 0;
+
+    
+
     
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SlaveAudioSenderAudioProcessor)

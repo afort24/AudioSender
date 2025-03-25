@@ -1,5 +1,3 @@
-//Pre-Semaphore Version
-
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
@@ -7,6 +5,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <cstring>
 
 //==============================================================================
 
@@ -23,38 +22,94 @@ SlaveAudioSenderAudioProcessor::SlaveAudioSenderAudioProcessor()
                        )
 #endif
 {
-    //Create Shared Memory
+    // Initialize shared memory in prepareToPlay instead of constructor
+    // This ensures we have proper audio parameters
+}
+
+bool SlaveAudioSenderAudioProcessor::initializeSharedMemory()
+{
+    // Clean up any existing resources first
+    cleanupSharedMemory();
+    
+    // Create or open shared memory
     shm_fd = shm_open(SHARED_MEMORY_NAME, O_CREAT | O_RDWR, 0666);
     
     if (shm_fd == -1)
     {
-        juce::Logger::writeToLog ("Failed to create shared memory: " + juce::String (strerror(errno)));
-        return;
+        juce::Logger::writeToLog("Failed to create shared memory: " + juce::String(strerror(errno)));
+        return false;
     }
 
-    ftruncate(shm_fd, BUFFER_SIZE);
-    void* sharedMemory = mmap(0, BUFFER_SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
-    
-    if (sharedMemory == MAP_FAILED)
+    // Set the size of the shared memory segment
+    if (ftruncate(shm_fd, MAX_BUFFER_SIZE) == -1)
     {
-        juce::Logger::writeToLog("Failed to map shared memory");
-        return;
+        juce::Logger::writeToLog("Failed to set shared memory size: " + juce::String(strerror(errno)));
+        close(shm_fd);
+        shm_fd = -1;
+        return false;
     }
 
-    audioBuffer = static_cast<float*>(sharedMemory);
+    // Map the shared memory into our address space
+    void* mappedMemory = mmap(0, MAX_BUFFER_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
     
-    juce::Logger::writeToLog("Shared memory created at address: " + juce::String((uintptr_t)audioBuffer));
+    if (mappedMemory == MAP_FAILED)
+    {
+        juce::Logger::writeToLog("Failed to map shared memory: " + juce::String(strerror(errno)));
+        close(shm_fd);
+        shm_fd = -1;
+        return false;
+    }
 
+    // Cast to our shared data structure
+    sharedData = static_cast<SharedAudioData*>(mappedMemory);
+    
+    // Initialize the shared memory structure with default values
+    new (&sharedData->writerPosition) std::atomic<int>(0);
+    new (&sharedData->readerPosition) std::atomic<int>(0);
+    new (&sharedData->isActive) std::atomic<bool>(true);
+    new (&sharedData->numChannels) std::atomic<int>(currentNumChannels);
+    new (&sharedData->bufferSize) std::atomic<int>(currentBlockSize);
+    new (&sharedData->sampleRate) std::atomic<double>(currentSampleRate);
+    new (&sharedData->writeCounter) std::atomic<uint64_t>(0);
+    
+    // Clear the audio buffer
+    std::memset(sharedData->audioData, 0, currentBlockSize * currentNumChannels * sizeof(float));
+    
+    juce::Logger::writeToLog("Shared memory initialized successfully at address: " +
+                            juce::String(reinterpret_cast<uintptr_t>(sharedData)));
+    
+    isMemoryInitialized = true;
+    return true;
+}
+
+void SlaveAudioSenderAudioProcessor::cleanupSharedMemory()
+{
+    if (sharedData != nullptr)
+    {
+        // Set inactive flag before unmapping to notify receivers
+        if (isMemoryInitialized)
+        {
+            sharedData->isActive.store(false);
+        }
+        
+        munmap(sharedData, MAX_BUFFER_SIZE);
+        sharedData = nullptr;
+    }
+
+    if (shm_fd != -1)
+    {
+        close(shm_fd);
+        shm_unlink(SHARED_MEMORY_NAME);
+        shm_fd = -1;
+    }
+    
+    isMemoryInitialized = false;
 }
 
 //Destructor
 SlaveAudioSenderAudioProcessor::~SlaveAudioSenderAudioProcessor()
 {
-    if (audioBuffer != nullptr)
-    {
-        munmap(audioBuffer, BUFFER_SIZE);
-        shm_unlink(SHARED_MEMORY_NAME);
-    }
+    cleanupSharedMemory();
 }
 
 //==============================================================================
@@ -122,26 +177,19 @@ void SlaveAudioSenderAudioProcessor::changeProgramName (int index, const juce::S
 //==============================================================================
 void SlaveAudioSenderAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
+    // Store the audio parameters
+    currentSampleRate = getSampleRate();
+    currentBlockSize = samplesPerBlock;
+    currentNumChannels = getTotalNumInputChannels();
     
+    // Initialize shared memory with the right parameters
+    initializeSharedMemory();
 }
 
 void SlaveAudioSenderAudioProcessor::releaseResources()
 {
-    if (audioBuffer != nullptr)
-    {
-        munmap(audioBuffer, BUFFER_SIZE);
-        audioBuffer = nullptr;
-    }
-
-    if (shm_fd != -1)
-    {
-        close(shm_fd);
-        shm_unlink(SHARED_MEMORY_NAME);
-        shm_fd = -1;
-    }
+    cleanupSharedMemory();
 }
-
-
 
 #ifndef JucePlugin_PreferredChannelConfigurations
 bool SlaveAudioSenderAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -175,39 +223,46 @@ void SlaveAudioSenderAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
 
-    // Clear any output channels beyond the input channels to avoid garbage
+    // Clear any output channels that didn't contain input data
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
+    // Skip processing if shared memory isn't initialized
+    if (!isMemoryInitialized || sharedData == nullptr)
+        return;
+        
+    // Update shared memory with current parameters (in case they changed)
+    sharedData->numChannels.store(totalNumInputChannels);
+    sharedData->bufferSize.store(buffer.getNumSamples());
+    sharedData->sampleRate.store(currentSampleRate);
+    
+    // Get writerPosition - this is where we'll write our data
+    int writePos = 0; // Always start at beginning of buffer for simplicity
+    
+    // Write audio data in interleaved format (easier for most receivers to handle)
     int numSamples = buffer.getNumSamples();
-    int numChannels = buffer.getNumChannels();
-
-    if (audioBuffer != nullptr)
+    
+    for (int sample = 0; sample < numSamples; ++sample)
     {
-        // ✅ Clear shared buffer first (optional but clean)
-        std::fill(audioBuffer, audioBuffer + numSamples * numChannels, 0.0f);
-
-        int maxSamples = BUFFER_SIZE / sizeof(float) / numChannels;
-        int numSamplesToWrite = std::min(numSamples, maxSamples);
-
-        for (int ch = 0; ch < numChannels; ++ch)
+        for (int channel = 0; channel < totalNumInputChannels; ++channel)
         {
-            const float* channelData = buffer.getReadPointer(ch);
-            for (int i = 0; i < numSamplesToWrite; ++i)
-            {
-                // ✅ Write in channel-first order (non-interleaved format)
-                audioBuffer[ch * numSamples + i] = channelData[i];
-            }
+            int index = (sample * totalNumInputChannels) + channel;
+            sharedData->audioData[index] = buffer.getSample(channel, sample);
         }
     }
+    
+    // Increment write counter to notify receiver that new data is available
+    sharedData->writeCounter.fetch_add(1);
+    
+    // Pass through audio unchanged
+    // If you want to mute the output, you can uncomment the next line
+    // buffer.clear();
 }
-
-
 
 //==============================================================================
 bool SlaveAudioSenderAudioProcessor::hasEditor() const
 {
-    return true; // (change this to false if you choose to not supply an editor)
+    return true;
 }
 
 juce::AudioProcessorEditor* SlaveAudioSenderAudioProcessor::createEditor()
@@ -235,4 +290,3 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new SlaveAudioSenderAudioProcessor();
 }
-
