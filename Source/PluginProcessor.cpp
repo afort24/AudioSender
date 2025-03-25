@@ -1,7 +1,5 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
-
-//Posix Headers
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
