@@ -44,24 +44,26 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
     
+    //==============================================================================
     // new:
     bool initializeSharedMemory();
     void cleanupSharedMemory();
     
-
-
+    //==============================================================================
+    //UI Parameters
+    juce::AudioProcessorValueTreeState parameters;
     
-
-
 private:
     
     static constexpr const char* SHARED_MEMORY_NAME = "/my_shared_audio_buffer";
-    
     double currentSampleRate = 0.0;
     int currentBlockSize = 0;
     int currentNumChannels = 0;
-    
     void updateBufferSizeIfNeeded();
+    
+    // UI Parameters:
+    juce::AudioParameterBool* monitorParameter;
+    
 
     
 
