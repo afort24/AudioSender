@@ -20,6 +20,12 @@ private:
     
     juce::ToggleButton monitorButton;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> monitorAttachment;
+    
+//    //Logger stuff
+//    juce::TextEditor logDisplay;
+//    juce::TextButton clearLogButton;
+//    juce::Timer logUpdateTimer;
+//    juce::File logFile;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SlaveAudioSenderAudioProcessorEditor)
 };
