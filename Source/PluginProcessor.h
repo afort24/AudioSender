@@ -56,13 +56,6 @@ public:
 private:
     
     static constexpr const char* SHARED_MEMORY_NAME = "/my_shared_audio_buffer";
-//    static constexpr size_t BUFFER_SIZE = 48000 * 2 * sizeof(float); // 1 second of stereo audio at 48kHz
-    
-//    int shm_fd;
-    
-//    float* audioBuffer;
-    
-
     
     double currentSampleRate = 0.0;
     int currentBlockSize = 0;
