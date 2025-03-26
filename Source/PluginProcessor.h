@@ -60,6 +60,8 @@ private:
     double currentSampleRate = 0.0;
     int currentBlockSize = 0;
     int currentNumChannels = 0;
+    
+    void updateBufferSizeIfNeeded();
 
     
 
