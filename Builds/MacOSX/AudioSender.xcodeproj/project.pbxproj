@@ -131,6 +131,7 @@
 		BA526BA69BCB154242FE3C1F /* CoreMIDI.framework */ /* CoreMIDI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMIDI.framework; path = System/Library/Frameworks/CoreMIDI.framework; sourceTree = SDKROOT; };
 		BDA3BA9FEC1F538FDAE6243C /* juce_VST3ManifestHelper.mm */ /* juce_VST3ManifestHelper.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = juce_VST3ManifestHelper.mm; path = /Applications/JUCE/modules/juce_audio_plugin_client/VST3/juce_VST3ManifestHelper.mm; sourceTree = "<absolute>"; };
 		C50890131BEC0A53C701E841 /* Shared Code */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libAudioSender.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		C68C426080C82C6217B7E608 /* SharedMemoryManager.h */ /* SharedMemoryManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = SharedMemoryManager.h; path = "../../../Shared Headers/SharedMemoryManager.h"; sourceTree = SOURCE_ROOT; };
 		C9D92AEC08EB1A576C9CE5E4 /* include_juce_gui_extra.mm */ /* include_juce_gui_extra.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = include_juce_gui_extra.mm; path = ../../JuceLibraryCode/include_juce_gui_extra.mm; sourceTree = SOURCE_ROOT; };
 		D40709FF24BF63F47DABFACE /* include_juce_core.mm */ /* include_juce_core.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = include_juce_core.mm; path = ../../JuceLibraryCode/include_juce_core.mm; sourceTree = SOURCE_ROOT; };
 		D5F372724AB42D5181A2AA1A /* PluginProcessor.h */ /* PluginProcessor.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = PluginProcessor.h; path = ../../Source/PluginProcessor.h; sourceTree = SOURCE_ROOT; };
@@ -139,7 +140,6 @@
 		DE8FEB6C2C07A65742E5CB0F /* QuartzCore.framework */ /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
 		DFCB0A238385514284A7903F /* include_juce_audio_utils.mm */ /* include_juce_audio_utils.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = include_juce_audio_utils.mm; path = ../../JuceLibraryCode/include_juce_audio_utils.mm; sourceTree = SOURCE_ROOT; };
 		E0209D90AFFEDB7552650745 /* Foundation.framework */ /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
-		E096B1C2312A7E17A2D2C458 /* SharedMemoryManager.h */ /* SharedMemoryManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = SharedMemoryManager.h; path = ../../Source/SharedMemoryManager.h; sourceTree = SOURCE_ROOT; };
 		E0CE0E54F7DF072C01171759 /* Info-AAX.plist */ /* Info-AAX.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "Info-AAX.plist"; path = "Info-AAX.plist"; sourceTree = SOURCE_ROOT; };
 		E0EAD4F4AD9FF768E34903C8 /* include_juce_audio_basics.mm */ /* include_juce_audio_basics.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = include_juce_audio_basics.mm; path = ../../JuceLibraryCode/include_juce_audio_basics.mm; sourceTree = SOURCE_ROOT; };
 		F228E8661ECA22365F1EF442 /* PluginProcessor.cpp */ /* PluginProcessor.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = PluginProcessor.cpp; path = ../../Source/PluginProcessor.cpp; sourceTree = SOURCE_ROOT; };
@@ -291,6 +291,14 @@
 			name = "JUCE Modules";
 			sourceTree = "<group>";
 		};
+		3AE04834DD7B83BD032AAE8B /* Shared Headers */ = {
+			isa = PBXGroup;
+			children = (
+				C68C426080C82C6217B7E608,
+			);
+			name = "Shared Headers";
+			sourceTree = "<group>";
+		};
 		4441F3F392F2649F92614CD1 /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -339,6 +347,7 @@
 		AC57F3851FF0B3AEBB9DA071 /* AudioSender */ = {
 			isa = PBXGroup;
 			children = (
+				3AE04834DD7B83BD032AAE8B,
 				B0F08B0ECB8CF4E1B3779635,
 			);
 			name = AudioSender;
@@ -347,7 +356,6 @@
 		B0F08B0ECB8CF4E1B3779635 /* Source */ = {
 			isa = PBXGroup;
 			children = (
-				E096B1C2312A7E17A2D2C458,
 				F228E8661ECA22365F1EF442,
 				D5F372724AB42D5181A2AA1A,
 				1BDA6A42FA0AAD822C57D7FF,

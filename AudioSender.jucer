@@ -5,9 +5,11 @@
               companyWebsite="alexfortunatomusic.com" companyEmail="afortunato.music@gmail.com"
               pluginFormats="buildAAX,buildAU,buildStandalone,buildVST3">
   <MAINGROUP id="Xu2c20" name="AudioSender">
+    <GROUP id="{6FEB4279-194F-1010-8654-C06FFC4C34B2}" name="Shared Headers">
+      <FILE id="GKxXQT" name="SharedMemoryManager.h" compile="0" resource="0"
+            file="../Shared Headers/SharedMemoryManager.h"/>
+    </GROUP>
     <GROUP id="{3C53F10A-8FCB-26DE-172A-0552AA4C30AF}" name="Source">
-      <FILE id="x7IDmR" name="SharedMemoryManager.h" compile="0" resource="0"
-            file="Source/SharedMemoryManager.h"/>
       <FILE id="GUf9nW" name="PluginProcessor.cpp" compile="1" resource="0"
             file="Source/PluginProcessor.cpp"/>
       <FILE id="GWxHrC" name="PluginProcessor.h" compile="0" resource="0"
