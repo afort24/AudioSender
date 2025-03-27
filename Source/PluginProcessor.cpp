@@ -19,17 +19,32 @@ SlaveAudioSenderAudioProcessor::SlaveAudioSenderAudioProcessor()
                      #endif
                        ),
 parameters (*this, nullptr, "PARAMETERS", {
-    std::make_unique<juce::AudioParameterBool>("monitor", "Monitor", false)
+    std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID("monitor", 1), //<-- jassert error fix
+        "Monitor",
+        false
+    )
 })
 #endif
 {
-    monitorParameter = dynamic_cast<juce::AudioParameterBool*>(parameters.getParameter("monitor"));
+    DBG("Plugin constructor start");
+
+        monitorParameter = parameters.getRawParameterValue("monitor");
+
+        if (monitorParameter == nullptr)
+            DBG("Monitor parameter is NULL! Crash incoming.");
+        else
+            DBG("Monitor parameter connected.");
 }
 
 bool SlaveAudioSenderAudioProcessor::initializeSharedMemory()
 {
     // Clean up any existing resources first
     cleanupSharedMemory();
+    
+    // First try to unlink any existing shared memory with this name
+    // This helps if a previous instance crashed without cleanup
+    shm_unlink(SHARED_MEMORY_NAME);
     
     // Create or open shared memory
     shm_fd = shm_open(SHARED_MEMORY_NAME, O_CREAT | O_RDWR, 0666);
@@ -350,12 +365,12 @@ void SlaveAudioSenderAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
     }
     
     // Monitor Button 
-    if (!monitorParameter->get())
+    if (monitorParameter != nullptr && monitorParameter->load() < 0.5f)
     {
-        // Mute all output channels
         for (auto i = 0; i < totalNumOutputChannels; ++i)
             buffer.clear(i, 0, buffer.getNumSamples());
     }
+
     // else - audio will pass through unchanged
     
     updateBufferSizeIfNeeded();

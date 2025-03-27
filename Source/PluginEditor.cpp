@@ -9,7 +9,8 @@ SlaveAudioSenderAudioProcessorEditor::SlaveAudioSenderAudioProcessorEditor (Slav
     monitorButton.setButtonText("Monitor");
     monitorButton.setTooltip("Enable to monitor audio in sender DAW");
     // Create the attachment to link the button to the parameter
-    monitorAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.parameters, "monitor", monitorButton);
+    // BEFORE:
+    monitorAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.getValueTreeState(), "monitor", monitorButton);
     addAndMakeVisible(monitorButton);
     
     // Make sure that before the constructor has finished, you've set the

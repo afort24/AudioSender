@@ -6,6 +6,10 @@
               pluginFormats="buildAAX,buildAU,buildStandalone,buildVST3" headerPath="/Users/alexanderfortunato/Development/JUCE/Shared Headers">
   <MAINGROUP id="Xu2c20" name="AudioSender">
     <GROUP id="{6FEB4279-194F-1010-8654-C06FFC4C34B2}" name="Shared Headers">
+      <FILE id="NiCEoe" name="AudioLevelUtils.h" compile="0" resource="0"
+            file="../Shared Headers/AudioLevelUtils.h"/>
+      <FILE id="FhbeNM" name="AudioMeterFader.h" compile="0" resource="0"
+            file="../Shared Headers/AudioMeterFader.h"/>
       <FILE id="GKxXQT" name="SharedMemoryManager.h" compile="0" resource="0"
             file="../Shared Headers/SharedMemoryManager.h"/>
     </GROUP>

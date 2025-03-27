@@ -50,8 +50,10 @@ public:
     void cleanupSharedMemory();
     
     //==============================================================================
-    //UI Parameters
-    juce::AudioProcessorValueTreeState parameters;
+    //UI Parameters getter
+    juce::AudioProcessorValueTreeState& getValueTreeState() { return parameters; }
+
+    
     
 private:
     
@@ -62,7 +64,8 @@ private:
     void updateBufferSizeIfNeeded();
     
     // UI Parameters:
-    juce::AudioParameterBool* monitorParameter;
+    juce::AudioProcessorValueTreeState parameters;
+    std::atomic<float>* monitorParameter = nullptr;
     
 
     
