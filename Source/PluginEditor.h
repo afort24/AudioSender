@@ -2,9 +2,11 @@
 
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
+#include "AudioMeterFader.h"
 
-
-class SlaveAudioSenderAudioProcessorEditor  : public juce::AudioProcessorEditor
+class SlaveAudioSenderAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                          private juce::Slider::Listener,
+                                          private juce::Timer
 {
 public:
     SlaveAudioSenderAudioProcessorEditor (SlaveAudioSenderAudioProcessor&);
@@ -13,20 +15,23 @@ public:
     //==============================================================================
     void paint (juce::Graphics&) override;
     void resized() override;
+    
+    // Slider::Listener implementation
+    void sliderValueChanged(juce::Slider* slider) override;
+    
+    // Timer callback to update the meter
+    void timerCallback() override;
 
 private:
 
     SlaveAudioSenderAudioProcessor& audioProcessor;
     
+    // Monitor button (keep your existing control)
     juce::ToggleButton monitorButton;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> monitorAttachment;
     
-//    //Logger stuff
-//    juce::TextEditor logDisplay;
-//    juce::TextButton clearLogButton;
-//    juce::Timer logUpdateTimer;
-//    juce::File logFile;
+    // Audio meter and gain fader component
+    AudioMeterFader meterFader;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SlaveAudioSenderAudioProcessorEditor)
 };
-

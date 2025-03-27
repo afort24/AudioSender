@@ -52,6 +52,31 @@ public:
     //==============================================================================
     //UI Parameters getter
     juce::AudioProcessorValueTreeState& getValueTreeState() { return parameters; }
+    
+    //Meter/fader stuff:
+    // Set the gain multiplier (linear)
+        void setGain(float newGain)
+        {
+            gain = newGain;
+        }
+        
+        // Get the current gain multiplier (linear)
+        float getGain() const
+        {
+            return gain;
+        }
+        
+        // Get the current audio level in dB
+        float getCurrentLevel() const
+        {
+            return currentLevel;
+        }
+        
+        // Returns true if shared memory is initialized and active
+        bool isMemoryInitializedAndActive() const
+        {
+            return isMemoryInitialized && sharedData != nullptr && sharedData->isActive.load();
+        }
 
     
     
@@ -67,7 +92,12 @@ private:
     juce::AudioProcessorValueTreeState parameters;
     std::atomic<float>* monitorParameter = nullptr;
     
-
+    // Gain control and metering
+    float gain = 1.0f;           // Linear gain (1.0 = unity gain)
+    float currentLevel = -60.0f;  // Current level in dB
+      
+    // Lock for ensuring thread safety when updating the level
+    juce::CriticalSection levelLock;
     
 
     

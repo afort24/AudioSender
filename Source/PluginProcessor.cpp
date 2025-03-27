@@ -1,5 +1,8 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+
+#include "AudioLevelUtils.h"
+
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -284,10 +287,6 @@ void SlaveAudioSenderAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
 {
     juce::ScopedNoDenormals noDenormals;
     
-    // Skip processing if shared memory isn't initialized
-    if (!isMemoryInitialized || sharedData == nullptr)
-        return;
-    
     auto totalNumInputChannels = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
     auto numSamples = buffer.getNumSamples();
@@ -295,6 +294,29 @@ void SlaveAudioSenderAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
     // Clear any output channels that didn't contain input data
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
+        
+    // Calculate and store the current audio level before applying gain
+    {
+        const juce::ScopedLock scopedLock(levelLock);
+        currentLevel = AudioLevelUtils::calculateRMSLevel(buffer);
+    }
+        
+    // Apply gain to the buffer if needed
+    if (gain != 1.0f)
+    {
+        for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
+        {
+            float* channelData = buffer.getWritePointer(channel);
+            for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
+            {
+                channelData[sample] *= gain;
+            }
+        }
+    }
+    
+    // Skip processing if shared memory isn't initialized
+    if (!isMemoryInitialized || sharedData == nullptr)
+        return;
         
     // Update shared memory with current parameters
     sharedData->numChannels.store(totalNumInputChannels);
@@ -364,7 +386,7 @@ void SlaveAudioSenderAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
         // We could try to write partial data here if desired
     }
     
-    // Monitor Button 
+    // Monitor Button
     if (monitorParameter != nullptr && monitorParameter->load() < 0.5f)
     {
         for (auto i = 0; i < totalNumOutputChannels; ++i)
