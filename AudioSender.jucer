@@ -3,7 +3,7 @@
 <JUCERPROJECT id="DIoc8c" name="AudioSender" projectType="audioplug" useAppConfig="0"
               addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" companyName="Alex Fortunato Music"
               companyWebsite="alexfortunatomusic.com" companyEmail="afortunato.music@gmail.com"
-              pluginFormats="buildAAX,buildAU,buildStandalone,buildVST3">
+              pluginFormats="buildAAX,buildAU,buildStandalone,buildVST3" headerPath="/Users/alexanderfortunato/Development/JUCE/Shared Headers">
   <MAINGROUP id="Xu2c20" name="AudioSender">
     <GROUP id="{6FEB4279-194F-1010-8654-C06FFC4C34B2}" name="Shared Headers">
       <FILE id="GKxXQT" name="SharedMemoryManager.h" compile="0" resource="0"
