@@ -32,6 +32,9 @@ private:
     
     // Audio meter and gain fader component
     AudioMeterFader meterFader;
+    
+    // Connection status label
+    juce::Label statusLabel;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SlaveAudioSenderAudioProcessorEditor)
 };

@@ -295,12 +295,6 @@ void SlaveAudioSenderAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
         
-    // Calculate and store the current audio level before applying gain
-    {
-        const juce::ScopedLock scopedLock(levelLock);
-        currentLevel = AudioLevelUtils::calculateRMSLevel(buffer);
-    }
-        
     // Apply gain to the buffer if needed
     if (gain != 1.0f)
     {
@@ -312,6 +306,12 @@ void SlaveAudioSenderAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
                 channelData[sample] *= gain;
             }
         }
+    }
+    
+    // Calculate and store the current audio level AFTER applying gain
+    {
+        const juce::ScopedLock scopedLock(levelLock);
+        currentLevel = AudioLevelUtils::calculateRMSLevel(buffer);
     }
     
     // Skip processing if shared memory isn't initialized
