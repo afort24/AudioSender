@@ -8,9 +8,7 @@
 #include <unistd.h>
 #include <cstring>
 
-//==============================================================================
 
-//Constructor
 SlaveAudioSenderAudioProcessor::SlaveAudioSenderAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
      : AudioProcessor (BusesProperties()
@@ -426,7 +424,7 @@ void SlaveAudioSenderAudioProcessor::setStateInformation (const void* data, int 
 }
 
 //==============================================================================
-// This creates new instances of the plugin..
+// This creates new instances of the plugin:
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new SlaveAudioSenderAudioProcessor();
