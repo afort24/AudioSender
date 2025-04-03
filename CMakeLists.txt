@@ -15,7 +15,7 @@ juce_add_plugin(AudioSender
         VERSION 1.0.0
         FORMATS AU VST3 Standalone
         PRODUCT_NAME "AudioSender"
-        COMPANY_NAME "Alex_Fortunato_Music"
+        COMPANY_NAME "AlexFortunatoMusic"
 )
 
 # Add source files
