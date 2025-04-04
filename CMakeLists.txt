@@ -1,22 +1,38 @@
-cmake_minimum_required(VERSION 3.15)
-project(AudioSender VERSION 1.0.0)
+cmake_minimum_required(VERSION 3.22)
+project(AudioSender VERSION 1.1.0)
+set(CMAKE_CXX_STANDARD 17)
 
-# Use FetchContent to get JUCE
-include(FetchContent)
-FetchContent_Declare(
-        JUCE
-        GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
-        GIT_TAG 8.0.6  # You can specify a specific tag/version here
+# Use CPM to get JUCE
+set(LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs)
+include(cmake/cpm.cmake)
+
+cpmaddpackage(
+        NAME JUCE
+        GIT_TAG 8.0.6
+        VERSION 8.0.6
+        GITHUB_REPOSITORY juce-framework/JUCE
+        SOURCE_DIR ${LIB_DIR}/juce
 )
-FetchContent_MakeAvailable(JUCE)
 
 # Set up your plugin
 juce_add_plugin(AudioSender
-        VERSION 1.0.0
+        VERSION 1.1.0
         FORMATS AU VST3 Standalone
         PRODUCT_NAME "AudioSender"
-        COMPANY_NAME "AlexFortunatoMusic"
+        COMPANY_NAME AlexFortunatoMusic
+
+        IS_SYNTH FALSE                       # Is this a synth or an effect?
+        NEEDS_MIDI_INPUT FALSE               # Does the plugin need midi input?
+        NEEDS_MIDI_OUTPUT FALSE              # Does the plugin need midi output?
+        IS_MIDI_EFFECT FALSE                 # Is this plugin a MIDI effect?
+        EDITOR_WANTS_KEYBOARD_FOCUS FALSE    # Does the editor need keyboard focus?
+        COPY_PLUGIN_AFTER_BUILD TRUE        # Should the plugin be installed to a default location after building?
+        PLUGIN_MANUFACTURER_CODE Fort        # A four-character manufacturer id with at least one upper-case character
+        PLUGIN_CODE Sndr                     # A unique four-character plugin id with exactly one upper-case character
 )
+
+# Generate JuceHeader.h
+juce_generate_juce_header(AudioSender)
 
 # Add source files
 target_sources(AudioSender PRIVATE
@@ -33,9 +49,17 @@ target_link_libraries(AudioSender PRIVATE
         # Add other modules as needed
 )
 
-# Add include directories for JuceLibraryCode, source, and shared headers
+# Add include directories for source and shared headers
 target_include_directories(AudioSender PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode
         ${CMAKE_CURRENT_SOURCE_DIR}/Source
+       # ${CMAKE_BINARY_DIR}/cmake-build-debug/AudioSender_artefacts/JuceLibraryCode
+#${CMAKE_CURRENT_SOURCE_DIR}/libs/juce/modules
         "/Users/alexanderfortunato/Development/JUCE/Shared Headers"
 )
+
+# These definitions are recommended by JUCE.
+target_compile_definitions(AudioSender
+        PUBLIC
+        JUCE_WEB_BROWSER=0
+        JUCE_USE_CURL=0
+        JUCE_VST3_CAN_REPLACE_VST2=0)

@@ -42,14 +42,14 @@ bool SlaveAudioSenderAudioProcessor::initializeSharedMemory()
 {
     // Clean up any existing resources first
     cleanupSharedMemory();
-    
+
     // First try to unlink any existing shared memory with this name
     // This helps if a previous instance crashed without cleanup
     shm_unlink(SHARED_MEMORY_NAME);
-    
+
     // Create or open shared memory
     shm_fd = shm_open(SHARED_MEMORY_NAME, O_CREAT | O_RDWR, 0666);
-    
+
     if (shm_fd == -1)
     {
         juce::Logger::writeToLog("Failed to create shared memory: " + juce::String(strerror(errno)));
@@ -67,7 +67,7 @@ bool SlaveAudioSenderAudioProcessor::initializeSharedMemory()
 
     // Map the shared memory into our address space
     void* mappedMemory = mmap(0, MAX_BUFFER_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
-    
+
     if (mappedMemory == MAP_FAILED)
     {
         juce::Logger::writeToLog("Failed to map shared memory: " + juce::String(strerror(errno)));
@@ -78,7 +78,7 @@ bool SlaveAudioSenderAudioProcessor::initializeSharedMemory()
 
     // Cast to our shared data structure
     sharedData = static_cast<SharedAudioData*>(mappedMemory);
-    
+
     // Initialize the shared memory structure with default values
     new (&sharedData->writeIndex) std::atomic<uint64_t>(0);
     new (&sharedData->readIndex) std::atomic<uint64_t>(0);
@@ -97,18 +97,18 @@ bool SlaveAudioSenderAudioProcessor::initializeSharedMemory()
     new (&sharedData->metrics.maxLatency) std::atomic<double>(0.0);
     new (&sharedData->metrics.bufferOverruns) std::atomic<uint64_t>(0);
     new (&sharedData->metrics.bufferUnderruns) std::atomic<uint64_t>(0);
-    
+
     // Clear the entire ring buffer
     std::memset(sharedData->audioData, 0,
                SharedAudioData::RING_BUFFER_SIZE * 8 * sizeof(float));
-               
+
     // Clear all block headers
     std::memset(sharedData->blockHeaders, 0,
                SharedAudioData::RING_BUFFER_SIZE * sizeof(SharedAudioData::AudioBlockHeader));
-    
+
     juce::Logger::writeToLog("Shared memory initialized successfully at address: " +
                             juce::String(reinterpret_cast<uintptr_t>(sharedData)));
-    
+
     isMemoryInitialized = true;
     return true;
 }
@@ -122,7 +122,7 @@ void SlaveAudioSenderAudioProcessor::cleanupSharedMemory()
         {
             sharedData->isActive.store(false);
         }
-        
+
         munmap(sharedData, MAX_BUFFER_SIZE);
         sharedData = nullptr;
     }
@@ -133,7 +133,7 @@ void SlaveAudioSenderAudioProcessor::cleanupSharedMemory()
         shm_unlink(SHARED_MEMORY_NAME);
         shm_fd = -1;
     }
-    
+
     isMemoryInitialized = false;
 }
 
@@ -141,20 +141,20 @@ void SlaveAudioSenderAudioProcessor::updateBufferSizeIfNeeded()
 {
     if (!isMemoryInitialized || sharedData == nullptr)
         return;
-        
+
     if (sharedData->adaptiveBuffering.load()) {
         // Check if we're getting overruns
         uint64_t overruns = sharedData->metrics.bufferOverruns.load();
         static uint64_t lastOverruns = 0;
-        
+
         if (overruns > lastOverruns) {
             // Increase buffer size if we're getting overruns
             int currentTarget = sharedData->targetLatency.load();
             sharedData->targetLatency.store(currentTarget + 5); // Add 5ms
-            
+
             juce::Logger::writeToLog("Increasing target latency to " +
                                    juce::String(currentTarget + 5) + "ms due to buffer overruns");
-            
+
             lastOverruns = overruns;
         }
     }
@@ -236,7 +236,7 @@ void SlaveAudioSenderAudioProcessor::prepareToPlay (double sampleRate, int sampl
     currentSampleRate = getSampleRate();
     currentBlockSize = samplesPerBlock;
     currentNumChannels = getTotalNumInputChannels();
-    
+
     // Initialize or reconfigure shared memory with the right parameters
         if (!isMemoryInitialized) {
             initializeSharedMemory();
@@ -284,7 +284,7 @@ bool SlaveAudioSenderAudioProcessor::isBusesLayoutSupported (const BusesLayout& 
 void SlaveAudioSenderAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
-    
+
     auto totalNumInputChannels = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
     auto numSamples = buffer.getNumSamples();
@@ -292,7 +292,7 @@ void SlaveAudioSenderAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
     // Clear any output channels that didn't contain input data
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
-        
+
     // Apply gain to the buffer if needed
     if (gain != 1.0f)
     {
@@ -305,32 +305,32 @@ void SlaveAudioSenderAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
             }
         }
     }
-    
+
     // Calculate and store the current audio level AFTER applying gain
     {
         const juce::ScopedLock scopedLock(levelLock);
         currentLevel = AudioLevelUtils::calculateRMSLevel(buffer);
     }
-    
+
     // Skip processing if shared memory isn't initialized
     if (!isMemoryInitialized || sharedData == nullptr)
         return;
-        
+
     // Update shared memory with current parameters
     sharedData->numChannels.store(totalNumInputChannels);
     sharedData->bufferSize.store(numSamples);
     sharedData->sampleRate.store(currentSampleRate);
-    
+
     // Get current write position
     uint64_t writeIndex = sharedData->writeIndex.load(std::memory_order_acquire);
-    
+
     // Calculate available space in the ring buffer
     uint64_t readIndex = sharedData->readIndex.load(std::memory_order_acquire);
     uint64_t available = SharedAudioData::RING_BUFFER_SIZE - (writeIndex - readIndex);
-    
+
     // Get sequence number for this block
     uint64_t sequence = sharedData->sequenceCounter.fetch_add(1, std::memory_order_relaxed);
-    
+
     // Latency Tracking:
     // Calculate and track current latency
     double currentTime = juce::Time::getMillisecondCounterHiRes() * 0.001; // seconds
@@ -349,27 +349,27 @@ void SlaveAudioSenderAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
         sharedData->metrics.maxLatency.store(bufferLatency);
     }
     // ^End Latency Tracking
-    
-    
+
+
     // Don't write more than we have room for (avoid overwriting unread data)
     if (numSamples <= available) {
         // Write audio data in interleaved format
         for (int sample = 0; sample < numSamples; ++sample) {
             uint64_t frameIndex = (writeIndex + sample) & SharedAudioData::BUFFER_MASK;
-            
+
             for (int channel = 0; channel < totalNumInputChannels; ++channel) {
                 int bufferIndex = (frameIndex * totalNumInputChannels) + channel;
                 sharedData->audioData[bufferIndex] = buffer.getSample(channel, sample);
             }
         }
-        
+
         // Store block metadata
         uint64_t headerIndex = writeIndex & SharedAudioData::BUFFER_MASK;
         sharedData->blockHeaders[headerIndex].sequenceNumber = sequence;
         sharedData->blockHeaders[headerIndex].timestamp = juce::Time::getMillisecondCounterHiRes() * 0.001;
         sharedData->blockHeaders[headerIndex].blockSize = numSamples;
         sharedData->blockHeaders[headerIndex].numChannels = totalNumInputChannels;
-        
+
         // Memory barrier ensures all writes complete before advancing the write index
         std::atomic_thread_fence(std::memory_order_release);
         sharedData->writeIndex.store(writeIndex + numSamples, std::memory_order_release);
@@ -377,13 +377,13 @@ void SlaveAudioSenderAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
         // Buffer overrun handling
         juce::Logger::writeToLog("Buffer overrun: needed " + juce::String(numSamples) +
                                " frames but only " + juce::String(available) + " available");
-                               
+
         // Track overruns in metrics
         sharedData->metrics.bufferOverruns.fetch_add(1, std::memory_order_relaxed);
-        
+
         // We could try to write partial data here if desired
     }
-    
+
     // Monitor Button
     if (monitorParameter != nullptr && monitorParameter->load() < 0.5f)
     {
@@ -392,7 +392,7 @@ void SlaveAudioSenderAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
     }
 
     // else - audio will pass through unchanged
-    
+
     updateBufferSizeIfNeeded();
 }
 

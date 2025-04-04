@@ -8,11 +8,11 @@ build/
 xcuserdata/
 .idea/
 
-# Ignore JUCE-generated files (if needed)
+
 *.jucer
 *.bak
 
-# ✅ Track source and project files
+# Track source and project files
 !Source/
 !*.cpp
 !*.h
