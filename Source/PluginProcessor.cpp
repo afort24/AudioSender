@@ -14,7 +14,13 @@ SlaveAudioSenderAudioProcessor::SlaveAudioSenderAudioProcessor()
      : AudioProcessor (BusesProperties()
                      #if ! JucePlugin_IsMidiEffect
                       #if ! JucePlugin_IsSynth
-                       .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
+                            .withInput("Input", AudioChannelSet::stereo(), true)
+                            .withInput("1/2", juce::AudioChannelSet::stereo(), true)
+                            .withInput("3/4", juce::AudioChannelSet::stereo(), true)
+                            .withInput("1",   juce::AudioChannelSet::mono(), true)
+                            .withInput("2",   juce::AudioChannelSet::mono(), true)
+                            .withInput("3",   juce::AudioChannelSet::mono(), true)
+                            .withInput("4",   juce::AudioChannelSet::mono(), true)
                       #endif
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                      #endif
@@ -258,143 +264,156 @@ void SlaveAudioSenderAudioProcessor::releaseResources()
 #ifndef JucePlugin_PreferredChannelConfigurations
 bool SlaveAudioSenderAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
-  #if JucePlugin_IsMidiEffect
+#if JucePlugin_IsMidiEffect
     juce::ignoreUnused (layouts);
     return true;
-  #else
-    // This is the place where you check if the layout is supported.
-    // In this template code we only support mono or stereo.
-    // Some plugin hosts, such as certain GarageBand versions, will only
-    // load plugins that support stereo bus layouts.
-    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
-     && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
+#else
+    // Ensure the output bus is mono or stereo
+    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono() &&
+        layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
         return false;
 
-    // This checks if the input layout matches the output layout
-   #if ! JucePlugin_IsSynth
-    if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet())
-        return false;
-   #endif
-
+    // Check each input bus
+    for (int bus = 0; bus < getBusCount(true); ++bus)
+    {
+        auto inputSet = layouts.getChannelSet(true, bus);
+        if (bus == 0 || bus == 1)  // "1/2" and "3/4" must be stereo
+        {
+            if (inputSet != juce::AudioChannelSet::stereo())
+                return false;
+        }
+        else  // Buses "1", "2", "3", "4" must be mono
+        {
+            if (inputSet != juce::AudioChannelSet::mono())
+                return false;
+        }
+    }
     return true;
-  #endif
+#endif
 }
 #endif
 
-void SlaveAudioSenderAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
+
+void SlaveAudioSenderAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
 
-    auto totalNumInputChannels = getTotalNumInputChannels();
-    auto totalNumOutputChannels = getTotalNumOutputChannels();
-    auto numSamples = buffer.getNumSamples();
+    // Get total channels and number of samples.
+    // With multiple buses, getTotalNumInputChannels() should equal 8.
+    int totalNumInputChannels  = getTotalNumInputChannels();
+    int totalNumOutputChannels = getTotalNumOutputChannels();
+    int numSamples = buffer.getNumSamples();
 
-    // Clear any output channels that didn't contain input data
-    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-        buffer.clear(i, 0, buffer.getNumSamples());
+    // Clear any output channels that didn't contain input data.
+    for (int i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
+        buffer.clear(i, 0, numSamples);
 
-    // Apply gain to the buffer if needed
+    // Apply gain to the entire buffer if needed.
     if (gain != 1.0f)
     {
-        for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
+        for (int channel = 0; channel < totalNumInputChannels; ++channel)
         {
             float* channelData = buffer.getWritePointer(channel);
-            for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
-            {
+            for (int sample = 0; sample < numSamples; ++sample)
                 channelData[sample] *= gain;
-            }
         }
     }
 
-    // Calculate and store the current audio level AFTER applying gain
+    // Calculate and store the current audio level AFTER applying gain.
     {
         const juce::ScopedLock scopedLock(levelLock);
         currentLevel = AudioLevelUtils::calculateRMSLevel(buffer);
     }
 
-    // Skip processing if shared memory isn't initialized
+    // Skip further processing if shared memory isn't initialized.
     if (!isMemoryInitialized || sharedData == nullptr)
         return;
 
-    // Update shared memory with current parameters
+    // Update shared memory parameters.
     sharedData->numChannels.store(totalNumInputChannels);
     sharedData->bufferSize.store(numSamples);
     sharedData->sampleRate.store(currentSampleRate);
 
-    // Get current write position
+    // Get current write position in shared memory.
     uint64_t writeIndex = sharedData->writeIndex.load(std::memory_order_acquire);
 
-    // Calculate available space in the ring buffer
+    // Calculate available space in the ring buffer.
     uint64_t readIndex = sharedData->readIndex.load(std::memory_order_acquire);
     uint64_t available = SharedAudioData::RING_BUFFER_SIZE - (writeIndex - readIndex);
 
-    // Get sequence number for this block
+    // Get a sequence number for this block.
     uint64_t sequence = sharedData->sequenceCounter.fetch_add(1, std::memory_order_relaxed);
 
     // Latency Tracking:
-    // Calculate and track current latency
     double currentTime = juce::Time::getMillisecondCounterHiRes() * 0.001; // seconds
     double bufferLatency = (available * 1000.0) / currentSampleRate; // in ms
-
     sharedData->metrics.currentLatency.store(bufferLatency);
 
-    // Update min/max latency
     double minLatency = sharedData->metrics.minLatency.load();
-    if (bufferLatency < minLatency) {
+    if (bufferLatency < minLatency)
         sharedData->metrics.minLatency.store(bufferLatency);
-    }
 
     double maxLatency = sharedData->metrics.maxLatency.load();
-    if (bufferLatency > maxLatency) {
+    if (bufferLatency > maxLatency)
         sharedData->metrics.maxLatency.store(bufferLatency);
-    }
-    // ^End Latency Tracking
+    // ^ End Latency Tracking
 
+    // Ensure we have enough space to write all samples.
+    if (numSamples <= available)
+    {
+        // Instead of assuming a merged buffer, iterate over each input bus.
+        int channelOffset = 0; // Running offset into the interleaved output.
+        for (int bus = 0; bus < getBusCount(true); ++bus)
+        {
+            // Retrieve the buffer for this input bus as a reference.
+            const auto& busBuffer = getBusBuffer(buffer, true, bus);
+            int numBusChannels = busBuffer.getNumChannels();
 
-    // Don't write more than we have room for (avoid overwriting unread data)
-    if (numSamples <= available) {
-        // Write audio data in interleaved format
-        for (int sample = 0; sample < numSamples; ++sample) {
-            uint64_t frameIndex = (writeIndex + sample) & SharedAudioData::BUFFER_MASK;
-
-            for (int channel = 0; channel < totalNumInputChannels; ++channel) {
-                int bufferIndex = (frameIndex * totalNumInputChannels) + channel;
-                sharedData->audioData[bufferIndex] = buffer.getSample(channel, sample);
+            // Write this bus's samples into the shared memory buffer.
+            for (int sample = 0; sample < numSamples; ++sample)
+            {
+                uint64_t frameIndex = (writeIndex + sample) & SharedAudioData::BUFFER_MASK;
+                for (int channel = 0; channel < numBusChannels; ++channel)
+                {
+                    int overallChannel = channelOffset + channel;
+                    int bufferIndex = (frameIndex * totalNumInputChannels) + overallChannel;
+                    sharedData->audioData[bufferIndex] = busBuffer.getSample(channel, sample);
+                }
             }
+            channelOffset += numBusChannels;
         }
 
-        // Store block metadata
+        // Store block metadata.
         uint64_t headerIndex = writeIndex & SharedAudioData::BUFFER_MASK;
         sharedData->blockHeaders[headerIndex].sequenceNumber = sequence;
         sharedData->blockHeaders[headerIndex].timestamp = juce::Time::getMillisecondCounterHiRes() * 0.001;
         sharedData->blockHeaders[headerIndex].blockSize = numSamples;
         sharedData->blockHeaders[headerIndex].numChannels = totalNumInputChannels;
 
-        // Memory barrier ensures all writes complete before advancing the write index
+        // Memory barrier ensures all writes complete before advancing the write index.
         std::atomic_thread_fence(std::memory_order_release);
         sharedData->writeIndex.store(writeIndex + numSamples, std::memory_order_release);
-    } else {
-        // Buffer overrun handling
+    }
+    else
+    {
+        // Buffer overrun handling.
         juce::Logger::writeToLog("Buffer overrun: needed " + juce::String(numSamples) +
-                               " frames but only " + juce::String(available) + " available");
-
-        // Track overruns in metrics
+                                   " frames but only " + juce::String(available) + " available");
         sharedData->metrics.bufferOverruns.fetch_add(1, std::memory_order_relaxed);
-
-        // We could try to write partial data here if desired
+        // Optionally, you could try to write partial data here.
     }
 
-    // Monitor Button
+    // Monitor Button: if monitoring is off, clear the output channels.
     if (monitorParameter != nullptr && monitorParameter->load() < 0.5f)
     {
-        for (auto i = 0; i < totalNumOutputChannels; ++i)
-            buffer.clear(i, 0, buffer.getNumSamples());
+        for (int i = 0; i < totalNumOutputChannels; ++i)
+            buffer.clear(i, 0, numSamples);
     }
 
-    // else - audio will pass through unchanged
-
+    // Additional functionality: update buffer size if needed.
     updateBufferSizeIfNeeded();
 }
+
 
 //==============================================================================
 bool SlaveAudioSenderAudioProcessor::hasEditor() const
