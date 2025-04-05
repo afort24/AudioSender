@@ -106,7 +106,7 @@ bool SlaveAudioSenderAudioProcessor::initializeSharedMemory()
 
     // Clear the entire ring buffer
     std::memset(sharedData->audioData, 0,
-               SharedAudioData::RING_BUFFER_SIZE * 8 * sizeof(float));
+               SharedAudioData::RING_BUFFER_SIZE * 10 * sizeof(float));
 
     // Clear all block headers
     std::memset(sharedData->blockHeaders, 0,
@@ -299,7 +299,7 @@ void SlaveAudioSenderAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
     juce::ScopedNoDenormals noDenormals;
 
     // Get total channels and number of samples.
-    // With multiple buses, getTotalNumInputChannels() should equal 8.
+    // With multiple buses, getTotalNumInputChannels() should equal 10
     int totalNumInputChannels  = getTotalNumInputChannels();
     int totalNumOutputChannels = getTotalNumOutputChannels();
     int numSamples = buffer.getNumSamples();
