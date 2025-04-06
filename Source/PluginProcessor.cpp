@@ -14,7 +14,7 @@ SlaveAudioSenderAudioProcessor::SlaveAudioSenderAudioProcessor()
      : AudioProcessor (BusesProperties()
                      #if ! JucePlugin_IsMidiEffect
                       #if ! JucePlugin_IsSynth
-                            .withInput("Input", AudioChannelSet::stereo(), true)
+                            .withInput("Main 1/2", juce::AudioChannelSet::stereo(), true)
                             .withInput("1/2", juce::AudioChannelSet::stereo(), true)
                             .withInput("3/4", juce::AudioChannelSet::stereo(), true)
                             .withInput("1",   juce::AudioChannelSet::mono(), true)
@@ -82,7 +82,7 @@ bool SlaveAudioSenderAudioProcessor::initializeSharedMemory()
         return false;
     }
 
-    // Cast to our shared data structure
+    // Cast to shared data structure
     sharedData = static_cast<SharedAudioData*>(mappedMemory);
 
     // Initialize the shared memory structure with default values
